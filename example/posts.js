@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    ChipField,
     Create,
     Datagrid,
     DateField,
@@ -11,6 +12,7 @@ import {
     List,
     LongTextInput,
     ReferenceManyField,
+    SingleFieldList,
     TextField,
     TextInput,
     RichTextField,
@@ -35,6 +37,11 @@ export const PostList = (props) => (
             <DateField source="published_at" />
             <TextField source="average_note" />
             <TextField source="views" />
+            <ReferenceManyField label="Tags" reference="tags" source="tags">
+                <SingleFieldList>
+                    <ChipField source="name" />
+                </SingleFieldList>
+            </ReferenceManyField>
             <EditButton />
         </Datagrid>
     </List>

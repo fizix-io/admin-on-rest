@@ -1,9 +1,13 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import get from 'lodash.get';
 import LinearProgress from 'material-ui/LinearProgress';
-import { crudGetManyReference as crudGetManyReferenceAction } from '../../actions/dataActions';
+import {
+    crudGetManyReference as crudGetManyReferenceAction,
+    crudGetMany as crudGetManyAction,
+} from '../../actions/dataActions';
 import { getReferences, nameRelatedTo } from '../../reducer/references/oneToMany';
-
+import { getRecordsByIds } from '../../reducer/resource/data';
 /**
  * Render related records to the current one.
  *
@@ -28,14 +32,23 @@ import { getReferences, nameRelatedTo } from '../../reducer/references/oneToMany
  */
 export class ReferenceManyField extends Component {
     componentDidMount() {
-        const relatedTo = nameRelatedTo(this.props.reference, this.props.record.id, this.props.resource, this.props.target);
-        this.props.crudGetManyReference(this.props.reference, this.props.target, this.props.record.id, relatedTo);
+        this.fetchReference(this.props);
     }
 
     componentWillReceiveProps(nextProps) {
         if (this.props.record.id !== nextProps.record.id) {
-            const relatedTo = nameRelatedTo(nextProps.reference, nextProps.record.id, nextProps.resource, nextProps.target);
-            this.props.crudGetManyReference(nextProps.reference, nextProps.target, nextProps.record.id, relatedTo);
+            this.fetchReference(nextProps);
+        }
+    }
+
+    fetchReference(props) {
+        const { reference, record, resource, target, source } = props;
+
+        if (target) {
+            const relatedTo = nameRelatedTo(reference, record.id, resource, target);
+            props.crudGetManyReference(reference, target, record.id, relatedTo);
+        } else if (source) {
+            props.crudGetMany(reference, get(record, source));
         }
     }
 
@@ -68,24 +81,44 @@ ReferenceManyField.propTypes = {
     reference: PropTypes.string.isRequired,
     referenceRecords: PropTypes.object,
     resource: PropTypes.string.isRequired,
-    source: PropTypes.string.isRequired,
-    target: PropTypes.string.isRequired,
+    target: PropTypes.string,
+    source: PropTypes.oneOfType([PropTypes.string, function validateSourceOrTarget(props) {
+        return (!props.target && !props.source) ?
+            new Error('You need to specify either "source" or "target" in <ReferenceManyField>') :
+            undefined;
+    }]),
 };
 
-function mapStateToProps(state, props) {
+function getTargetRecords(state, props) {
     const relatedTo = nameRelatedTo(props.reference, props.record.id, props.resource, props.target);
+    return getReferences(state, props.reference, relatedTo);
+}
+
+function getSourceRecords(state, props) {
+    return getRecordsByIds(state, props.reference, get(props.record, props.source));
+}
+
+function mapStateToProps(state, props) {
+    let referenceRecords;
+
+    if (props.target) {
+        referenceRecords = getTargetRecords(state, props);
+    } else if (props.source) {
+        referenceRecords = getSourceRecords(state, props);
+    }
+
     return {
-        referenceRecords: getReferences(state, props.reference, relatedTo),
+        referenceRecords,
     };
 }
 
 const ConnectedReferenceManyField = connect(mapStateToProps, {
     crudGetManyReference: crudGetManyReferenceAction,
+    crudGetMany: crudGetManyAction,
 })(ReferenceManyField);
 
 ConnectedReferenceManyField.defaultProps = {
     includesLabel: false,
-    source: '',
 };
 
 export default ConnectedReferenceManyField;

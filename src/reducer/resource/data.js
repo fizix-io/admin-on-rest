@@ -93,4 +93,12 @@ export default (resource) => (previousState = initialState, { type, payload, met
     }
 };
 
-export const getRecord = (state, id) => state[id];
+export const getRecord = (state, resource, id) => state.admin[resource].data[id];
+
+export const getRecordsByIds = (state, resource, ids) =>
+    ids.map(id => getRecord(state, resource, id))
+       .filter(r => typeof r !== 'undefined')
+       .reduce((prev, record) => {
+           prev[record.id] = record; // eslint-disable-line no-param-reassign
+           return prev;
+       }, {});
